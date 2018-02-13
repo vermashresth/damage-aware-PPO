@@ -2,8 +2,14 @@ import tensorflow as tf
 import lightsaber.tensorflow.util as util
 
 
-def build_train(network, obs_dim,
-            num_actions, gamma=1.0, epsilon=0.2, beta=0.01, scope='ppo', reuse=None):
+def build_train(network,
+                obs_dim,
+                num_actions,
+                gamma=1.0,
+                epsilon=0.2,
+                beta=0.01,
+                scope='ppo',
+                reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
         # input placeholders
         obs_t_input = tf.placeholder(tf.float32, [None, obs_dim], name='obs_t')
