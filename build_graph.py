@@ -16,39 +16,24 @@ def build_train(network,
         act_t_ph = tf.placeholder(tf.float32, [None, num_actions], name='action')
         return_t_ph = tf.placeholder(tf.float32, [None, 1], name='return')
         advantage_t_ph = tf.placeholder(tf.float32, [None, 1], name='advantage')
+        mask_ph = tf.placeholder(tf.float32, [None, 1], name='mask')
 
         policy, value, dist = network(
-            obs_t_input,
-            num_actions,
-            scope='network',
-            reuse=reuse
-        )
+            obs_t_input, num_actions, scope='network', reuse=reuse)
         network_func_vars = util.scope_vars(
-            util.absolute_scope_name('network'),
-            trainable_only=True
-        )
+            util.absolute_scope_name('network'), trainable_only=True)
 
         old_policy, old_value, old_dist = network(
-            obs_t_input,
-            num_actions,
-            scope='old_network',
-            reuse=reuse
-        )
+            obs_t_input, num_actions, scope='old_network', reuse=reuse)
         old_network_func_vars = util.scope_vars(
             util.absolute_scope_name('old_network'),
-            trainable_only=True
-        )
+            trainable_only=True)
 
         tmp_policy, tmp_value, tmp_dist = network(
-            obs_t_input,
-            num_actions,
-            scope='tmp_network',
-            reuse=reuse
-        )
+            obs_t_input, num_actions, scope='tmp_network', reuse=reuse)
         tmp_network_func_vars = util.scope_vars(
             util.absolute_scope_name('tmp_network'),
-            trainable_only=True
-        )
+            trainable_only=True)
 
         # clipped surrogate objective
         cur_policy = dist.log_prob(act_t_ph + 1e-5)
@@ -56,16 +41,16 @@ def build_train(network,
         ratio = tf.exp(cur_policy - old_policy)
         clipped_ratio = tf.clip_by_value(ratio, 1.0 - epsilon, 1.0 + epsilon)
         surrogate = -tf.reduce_mean(
-            tf.minimum(ratio, clipped_ratio) * advantage_t_ph,
-            name='surrogate'
-        )
+            tf.minimum(ratio, clipped_ratio) * advantage_t_ph * mask_ph,
+            name='surrogate')
 
         with tf.variable_scope('loss'):
             # value network loss
-            value_loss = tf.reduce_mean(tf.square(value - return_t_ph))
+            value_loss = tf.reduce_mean(
+                tf.square(value - return_t_ph) * mask_ph)
 
             # entropy penalty for exploration
-            entropy = tf.reduce_mean(dist.entropy())
+            entropy = tf.reduce_mean(dist.entropy() * mask_ph)
             penalty = -beta * entropy
 
             # total loss
@@ -79,13 +64,9 @@ def build_train(network,
         with tf.variable_scope('update_old_network'):
             update_old_expr = []
             sorted_tmp_vars = sorted(
-                tmp_network_func_vars,
-                key=lambda v: v.name
-            )
+                tmp_network_func_vars, key=lambda v: v.name)
             sorted_old_vars = sorted(
-                old_network_func_vars,
-                key=lambda v: v.name
-            )
+                old_network_func_vars, key=lambda v: v.name)
             for var_tmp, var_old in zip(sorted_tmp_vars, sorted_old_vars):
                 update_old_expr.append(var_old.assign(var_tmp))
             update_old_expr = tf.group(*update_old_expr)
@@ -93,11 +74,10 @@ def build_train(network,
         # update tmp network operations
         with tf.variable_scope('update_tmp_network'):
             update_tmp_expr = []
-            sorted_vars = sorted(network_func_vars, key=lambda v: v.name)
+            sorted_vars = sorted(
+                network_func_vars, key=lambda v: v.name)
             sorted_tmp_vars = sorted(
-                tmp_network_func_vars,
-                key=lambda v: v.name
-            )
+                tmp_network_func_vars, key=lambda v: v.name)
             for var, var_tmp in zip(sorted_vars, sorted_tmp_vars):
                 update_tmp_expr.append(var_tmp.assign(var))
             update_tmp_expr = tf.group(*update_tmp_expr)

@@ -42,7 +42,7 @@ class Agent(object):
         self.last_actions = None
         self.last_values = None
 
-    def act(self, obs, rewards, training=True):
+    def act(self, obs, rewards, dones, training=True):
         actions, values = self._act(np.reshape(obs, [-1, self.obs_dim]))
         actions = np.reshape(np.clip(actions, -2, 2), [-1, self.num_actions])
         values = np.reshape(values, [-1])
@@ -54,6 +54,7 @@ class Agent(object):
                     action=self.last_actions[i],
                     reward=rewards[i],
                     value=self.last_values[i]
+                    terminal=dones[i]
                 )
             if self.t > 0 and self.t % self.horizon == 0:
                 self.train()
@@ -70,6 +71,7 @@ class Agent(object):
         actions = []
         values = []
         advantages = []
+        masks = []
         for i in range(self.nenvs):
             obs.append(self.rollouts[i].states)
             actions.append(self.rollouts[i].actions)
@@ -103,6 +105,7 @@ class Agent(object):
                     reward=rewards[i],
                     value=self.last_values[i]
                 )
+            self.train()
         self.last_obs = None
         self.last_actions = None
         self.last_values = None
