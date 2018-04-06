@@ -86,13 +86,16 @@ class Agent(object):
             adv = (adv - adv.mean()) / (adv.std() + 1e-5)
             values.append(v)
             advantages.append(adv)
+            masks.append(list(
+                map(lamda t: 0.0 if t else 1.0, self.rollouts[i].terminals)))
             # flush histories
             self.rollouts[i].flush()
         obs = np.reshape(obs, [-1, self.obs_dim])
         actions = np.reshape(actions, [-1, self.num_actions])
         values = np.reshape(values, [-1, 1])
         advantages = np.reshape(advantages, [-1, 1])
-        loss, value_loss, ratio = self._train(obs, actions, values, advantages)
+        loss, value_loss, ratio = self._train(
+            obs, actions, values, advantages, masks)
         self._update_old()
         return ratio
 
@@ -103,7 +106,8 @@ class Agent(object):
                     state=self.obs[i],
                     action=self.last_actions[i],
                     reward=rewards[i],
-                    value=self.last_values[i]
+                    value=self.last_values[i],
+                    terminal=False
                 )
             self.train()
         self.last_obs = None
