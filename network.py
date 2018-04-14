@@ -2,52 +2,72 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 
-def _make_network(hiddens, inpt, num_actions, scope='network', reuse=None):
+def _make_network(convs,
+                  hiddens,
+                  lstm,
+                  inpt,
+                  rnn_state_tuple,
+                  num_actions,
+                  lstm_unit,
+                  nenvs,
+                  step_size,
+                  continuous,
+                  scope='network',
+                  reuse=None):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
-        for i, hidden in enumerate(hiddens):
-            out = tf.layers.dense(out, hidden, name='d{}'.format(i),
-                bias_initializer=tf.constant_initializer(0.1),
-                kernel_initializer=tf.random_normal_initializer(0.0, 0.3))
-            out = tf.nn.tanh(out)
+        with tf.variable_scope('convnet'):
+            for num_outputs, kernel_size, stride, padding in convs:
+                out = layers.convolution2d(
+                    out,
+                    num_outputs=num_outputs,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding='VALID',
+                    activation_fn=tf.nn.relu
+                )
+            out = layers.flatten(out)
+
+        with tf.variable_scope('hiddens')
+            for hidden in (hiddens):
+                out = layers.fully_connected(
+                    out, hidden, activation_fn=tf.nn.tanh)
+
+        with tf.variable_scope('rnn'):
+            lstm_cell = tf.contrib.rnn.BasicLSTMCell(lstm_unit, state_is_tuple=True)
+            # sequence to batch
+            rnn_in = tf.reshape(out, [nenvs, step_size, lstm_unit])
+            sequence_length = tf.ones(nenvs, dtype=tf.int32) * step_size
+            lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
+                lstm_cell, rnn_in, initial_state=rnn_state_tuple,
+                sequence_length=sequence_length, time_major=False)
+            # batch to sequence
+            rnn_out = tf.reshape(lstm_outputs, [-1, lstm_unit])
+
+        if lstm:
+            out = rnn_out
 
         # policy branch
-        mu = tf.layers.dense(
-            out,
-            num_actions,
-            kernel_initializer=tf.random_uniform_initializer(
-                minval=-3e-3,
-                maxval=3e-3
-            ),
-            name='mu'
-        )
-        mu = tf.nn.tanh(mu + 1e-5)
+        if continous:
+            mu = layers.fully_connected(
+                out, num_actions, activation_fn=None, name='mu')
+            mu = tf.nn.tanh(mu + 1e-20)
 
-        sigma = tf.layers.dense(
-            out,
-            num_actions,
-            kernel_initializer=tf.random_uniform_initializer(
-                minval=-3e-3,
-                maxval=3e-3
-            ),
-            name='sigma'
-        )
-        sigma = tf.nn.softplus(sigma + 1e-5)
+            sigma = layers.fully_connected(
+                out, num_actions, activation_fn=None, name='sigma')
+            sigma = tf.nn.softplus(sigma + 1e-20)
 
-        dist = tf.distributions.Normal(mu, sigma)
-        policy = tf.squeeze(dist.sample(num_actions), [0])
+            dist = tf.distributions.Normal(mu, sigma)
+            policy = tf.squeeze(dist.sample(num_actions), [0])
+        else:
+            probs = layers.fully_connected(
+                out, num_actions, activation_fn=tf.nn.softmax)
+            dist = tf.distributions.Categorical(probs=probs)
+            policy = tf.squeeze(dist.sample(1), [0])
 
         # value branch
-        value = tf.layers.dense(
-            out,
-            1,
-            kernel_initializer=tf.random_uniform_initializer(
-                minval=-3e-3,
-                maxval=3e-3
-            ),
-            name='d3'
-        )
+        value = layers.fully_connected(out, 1, activation_fn=None)
     return policy, value, dist
 
-def make_network(hiddens):
-    return lambda *args, **kwargs: _make_network(hiddens, *args, **kwargs)
+def make_network(convs, hiddens, lstm):
+    return lambda *args, **kwargs: _make_network(convs, hiddens, lstm, *args, **kwargs)

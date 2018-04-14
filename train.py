@@ -22,31 +22,48 @@ def main():
     date = datetime.now().strftime("%Y%m%d%H%M%S")
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='Pendulum-v0')
-    parser.add_argument('--outdir', type=str, default=date)
     parser.add_argument('--logdir', type=str, default=date)
     parser.add_argument('--load', type=str, default=None)
-    parser.add_argument('--final-steps', type=int, default=10 ** 7)
     parser.add_argument('--render', action='store_true')
-    parser.add_argument('--batch', type=int, default=64)
-    parser.add_argument('--epoch', type=int, default=10)
-    parser.add_argument('--nenvs', type=int, default=4)
     parser.add_argument('--demo', action='store_true')
     args = parser.parse_args()
 
-    outdir = os.path.join(os.path.dirname(__file__), 'results' + args.outdir)
+    outdir = os.path.join(os.path.dirname(__file__), 'results/' + args.logdir)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     logdir = os.path.join(os.path.dirname(__file__), 'logs/' + date)
 
-    env = BatchEnvWrapper(envs=[gym.make(args.env) for _ in range(args.nenvs)])
+    env_name = args.env
+    tmp_env = gym.make(env_name)
+    if len(tmp_env.observation_space.shape) == 1:
+        observation_space = tmp_env.observation_space
+        constants = box_constants
+        actions = range(tmp_env.action_space.n)
+        state_shape = [observation_space.shape[0], constants.STATE_WINDOW]
+        state_preprocess = lambda s: s
+        # (window_size, dim) -> (dim, window_size)
+        phi = lambda s: np.transpose(s, [1, 0])
+    else:
+        constants = atari_constants
+        actions = get_action_space(env_name)
+        state_shape = constants.STATE_SHAPE + [constants.STATE_WINDOW]
+        def state_preprocess(state):
+            state = cv2.cvtColor(state, cv2.COLOR_RGB2GRAY)
+            state = cv2.resize(state, tuple(constants.STATE_SHAPE))
+            state = np.array(state, dtype=np.float32)
+            return state / 255.0
+        # (window_size, H, W) -> (H, W, window_size)
+        phi = lambda s: np.transpose(s, [1, 2, 0])
 
-    obs_dim = env.observation_space.shape[0]
-    n_actions = env.action_space.shape[0]
-
-    network = make_network([64, 64])
+    # save settings
+    dump_constants(constants, os.path.join(outdir, 'constants.json'))
 
     sess = tf.Session()
     sess.__enter__()
+
+    env = BatchEnvWrapper(envs=[gym.make(args.env) for _ in range(args.nenvs)])
+
+    network = make_network(constants.CONVS, constants.FCS, lstm=constants.LSTM)
 
     agent = Agent(network, obs_dim, n_actions)
 
