@@ -92,6 +92,7 @@ class Agent(object):
 
     def train(self):
         self._backup_current()
+
         obs = []
         actions = []
         values = []
@@ -121,6 +122,7 @@ class Agent(object):
         advantages = np.reshape(advantages, [-1, 1])
         loss, value_loss, ratio = self._train(
             obs, actions, values, advantages, masks)
+
         self._update_old()
         return ratio
 

@@ -65,7 +65,9 @@ def build_train(network,
         ratio = tf.exp(cur_policy - old_policy)
         clipped_ratio = tf.clip_by_value(ratio, 1.0 - epsilon, 1.0 + epsilon)
         surrogate = -tf.reduce_mean(
-            tf.minimum(ratio, clipped_ratio) * advantages * masks,
+
+            tf.minimum(ratio * advantage_t_ph, clipped_ratio * advantage_t_ph),
+
             name='surrogate')
 
         with tf.variable_scope('loss'):
