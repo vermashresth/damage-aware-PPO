@@ -12,7 +12,7 @@ from lightsaber.tensorflow.util import initialize
 from lightsaber.rl.replay_buffer import ReplayBuffer
 from network import make_network
 from agent import Agent
-
+import numpy
 
 def main():
     parser = argparse.ArgumentParser()
@@ -38,7 +38,7 @@ def main():
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.shape[0]
 
-    network = make_network([64, 64])
+    network = make_network([512, 256, 128 ])
 
     sess = tf.Session()
     sess.__enter__()
@@ -78,7 +78,14 @@ def main():
 
                 action, value = agent.act_and_train(
                         last_obs, last_action, last_value, reward,  obs)
-
+                if numpy.isnan(action).any():
+                    print "NaN found"
+                    path = os.path.join(args.outdir,
+                            '{}/model.ckpt'.format(global_step))
+                    saver.save(sess, path, max_to_keep=20)
+                    local_step = 3000
+                    global_step = args.final_steps
+                    break
                 last_obs = obs
                 last_action = action
                 last_value = value
@@ -89,7 +96,7 @@ def main():
                 local_step += 1
 
                 # save model
-                if global_step % 10 ** 6 == 0:
+                if global_step % 5*10 ** 3 == 0:
                     path = os.path.join(args.outdir,
                             '{}/model.ckpt'.format(global_step))
                     saver.save(sess, path)
@@ -128,12 +135,14 @@ def main():
             actions.extend(a)
             returns.extend(r)
             deltas.extend(d)
+        print "Now Training"
         for epoch in range(args.epoch):
-            indices = random.sample(range(len(obs)), args.batch)
+            indices = random.sample(range(len(obs)), min(len(obs),args.batch))
             sampled_obs = np.array(obs)[indices]
             sampled_actions = np.array(actions)[indices]
             sampled_returns = np.array(returns)[indices]
             sampled_deltas = np.array(deltas)[indices]
+
             ratio = agent.train(
                 sampled_obs,
                 sampled_actions,
