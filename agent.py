@@ -53,7 +53,7 @@ class Agent(object):
     def train(self, obs, actions, returns, deltas):
         self._backup_current()
         loss, value_loss, ratio = self._train(obs, actions, returns, deltas)
-        print(loss, value_loss, ratio)
+        # print(loss, value_loss, ratio)
         self._update_old()
         return ratio
 
