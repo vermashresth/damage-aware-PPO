@@ -7,13 +7,13 @@ import numpy as np
 import tensorflow as tf
 
 from lightsaber.tensorflow.util import initialize
-from network import make_actor_network, make_critic_network
+from network import make_network
 from agent import Agent
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, default='Pendulum-v0')
+    parser.add_argument('--env', type=str, default='MyAnt-v1')
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--load', type=str, default=None)
     parser.add_argument('--render', action='store_true')
@@ -24,13 +24,13 @@ def main():
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.shape[0]
 
-    actor = make_actor_network([30])
-    critic = make_critic_network()
+    network = make_network([100, 100, 100])
+    # critic = make_critic_network()
 
     sess = tf.Session()
     sess.__enter__()
 
-    agent = Agent(actor, critic, obs_dim, n_actions, None)
+    agent = Agent(network, obs_dim, n_actions, None)
 
     saver = tf.train.Saver()
     if args.load is not None:
@@ -53,7 +53,7 @@ def main():
 
             if done:
                 break
-
+            print action
             state, reward, done, info = env.step(action)
 
             sum_of_rewards += reward

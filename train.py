@@ -38,7 +38,11 @@ def main():
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.shape[0]
 
+<<<<<<< HEAD
     network = make_network([512, 256, 128 ])
+=======
+    network = make_network([100, 100, 100])
+>>>>>>> 6b94eef89a5953d6ede5ebcd655291f1185553b1
 
     sess = tf.Session()
     sess.__enter__()
@@ -96,10 +100,15 @@ def main():
                 local_step += 1
 
                 # save model
+<<<<<<< HEAD
                 if global_step % 5*10 ** 3 == 0:
+=======
+                if global_step % 10 **3 == 0:
+>>>>>>> 6b94eef89a5953d6ede5ebcd655291f1185553b1
                     path = os.path.join(args.outdir,
                             '{}/model.ckpt'.format(global_step))
-                    saver.save(sess, path)
+                    saver.save(sess, save_path=path,global_step=None, latest_filename=None, meta_graph_suffix='meta',
+        write_meta_graph=True, write_state=True)
 
                 # the end of episode
                 if done:
