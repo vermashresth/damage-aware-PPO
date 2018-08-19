@@ -38,7 +38,7 @@ def main():
     obs_dim = env.observation_space.shape[0]
     n_actions = env.action_space.shape[0]
 
-    network = make_network([64, 64])
+    network = make_network([100, 100, 100])
 
     sess = tf.Session()
     sess.__enter__()
@@ -89,10 +89,11 @@ def main():
                 local_step += 1
 
                 # save model
-                if global_step % 10 ** 6 == 0:
+                if global_step % 10 **3 == 0:
                     path = os.path.join(args.outdir,
                             '{}/model.ckpt'.format(global_step))
-                    saver.save(sess, path)
+                    saver.save(sess, save_path=path,global_step=None, latest_filename=None, meta_graph_suffix='meta',
+        write_meta_graph=True, write_state=True)
 
                 # the end of episode
                 if done:
@@ -129,7 +130,7 @@ def main():
             returns.extend(r)
             deltas.extend(d)
         for epoch in range(args.epoch):
-            indices = random.sample(range(len(obs)), args.batch)
+            indices = random.sample(range(len(obs)), min(len(obs),args.batch))
             sampled_obs = np.array(obs)[indices]
             sampled_actions = np.array(actions)[indices]
             sampled_returns = np.array(returns)[indices]

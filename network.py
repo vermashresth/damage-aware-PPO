@@ -35,7 +35,7 @@ def _make_network(hiddens, inpt, num_actions, scope='network', reuse=None):
         sigma = tf.nn.softplus(sigma + 1e-5)
 
         dist = tf.distributions.Normal(mu, sigma)
-        policy = tf.squeeze(dist.sample(num_actions), [0])
+        policy = tf.squeeze(dist.sample(num_actions), [1])
 
         # value branch
         value = tf.layers.dense(
