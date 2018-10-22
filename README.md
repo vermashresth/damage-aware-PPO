@@ -24,7 +24,7 @@ $ python play.py --gpu {0 or -1} --render --load {path of models}
 ```
 
 ### implementation
-This is inspired by following projects.
+The code base is build up on these projects
 
 - [DQN](https://github.com/imai-laboratory/dqn)
 - [OpenAI Baselines](https://github.com/openai/baselines)
