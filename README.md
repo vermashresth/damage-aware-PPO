@@ -28,3 +28,6 @@ This is inspired by following projects.
 
 - [DQN](https://github.com/imai-laboratory/dqn)
 - [OpenAI Baselines](https://github.com/openai/baselines)
+
+### Ongoing Work
+Augmenting the observation space to be aware of damage classes of the agent.
